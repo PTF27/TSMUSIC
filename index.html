@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Stream Player</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:transparent!important;overflow:hidden;font-family:Arial,Helvetica,sans-serif}
+.clock-container{position:fixed;left:30px;top:50%;transform:translateY(-50%);z-index:100;color:#fff;user-select:none;text-shadow:0 2px 5px rgba(0,0,0,.9),0 0 10px rgba(255,255,255,.35),0 0 25px rgba(255,255,255,.15)}
+.clock-time{font-size:clamp(42px,5vw,72px);font-weight:300;letter-spacing:3px;line-height:1;color:#fff;white-space:nowrap}
+.clock-date{margin-top:12px;font-size:clamp(12px,1.2vw,16px);font-weight:400;letter-spacing:2px;text-transform:capitalize;color:rgba(255,255,255,.9);white-space:nowrap}
+.clock-line{width:55px;height:2px;margin-top:12px;border-radius:10px;background:rgba(255,255,255,.8);box-shadow:0 0 8px rgba(255,255,255,.7),0 0 20px rgba(255,255,255,.3)}
+.player-position{position:fixed;left:50%;bottom:35px;transform:translateX(-50%);width:min(650px,calc(100% - 40px));z-index:200}
+.player-glow{position:absolute;left:5%;right:5%;bottom:-18px;height:70px;border-radius:50%;background:rgba(255,255,255,.13);filter:blur(30px);opacity:.8;pointer-events:none;animation:glow 4s ease-in-out infinite}
+@keyframes glow{0%{opacity:.35;transform:scaleX(.85)}50%{opacity:.75;transform:scaleX(1)}100%{opacity:.35;transform:scaleX(.85)}}
+.player{position:relative;min-height:88px;padding:16px 20px;display:flex;align-items:center;gap:18px;border-radius:24px;background:linear-gradient(135deg,rgba(30,30,30,.82),rgba(0,0,0,.65));backdrop-filter:blur(25px) saturate(120%);-webkit-backdrop-filter:blur(25px) saturate(120%);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -1px 0 rgba(0,0,0,.8),0 15px 45px rgba(0,0,0,.65),0 0 30px rgba(255,255,255,.06);overflow:hidden;transition:border .3s ease,box-shadow .3s ease}
+.player::before{content:"";position:absolute;top:0;left:8%;width:84%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);box-shadow:0 0 12px rgba(255,255,255,.4)}
+.play-button{position:relative;width:54px;height:54px;flex-shrink:0;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.04));color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:inset 0 1px 1px rgba(255,255,255,.12),0 5px 20px rgba(0,0,0,.5);transition:transform .25s ease,background .25s ease,box-shadow .25s ease}
+.play-button:hover{transform:scale(1.08);background:rgba(255,255,255,.14);box-shadow:0 0 15px rgba(255,255,255,.25),0 5px 25px rgba(0,0,0,.6)}
+.stream-info{min-width:0;flex:1}
+.stream-name{color:#fff;font-size:14px;font-weight:600;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stream-status{display:flex;align-items:center;margin-top:7px;color:rgba(255,255,255,.55);font-size:10px;letter-spacing:1.5px}
+.live-led{width:7px;height:7px;margin-right:7px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff,0 0 14px rgba(255,255,255,.8);animation:livePulse 1.5s infinite}
+@keyframes livePulse{0%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1)}100%{opacity:.35;transform:scale(.8)}}
+.volume-container{display:flex;align-items:center;gap:8px}
+.volume-icon{color:rgba(255,255,255,.65);font-size:15px}
+.volume{width:75px;height:3px;appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.18);border-radius:20px;cursor:pointer}
+.volume::-webkit-slider-thumb{appearance:none;width:11px;height:11px;border-radius:50%;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7)}
+.volume::-moz-range-thumb{width:11px;height:11px;border:none;border-radius:50%;background:#fff}
+.player.playing{border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 15px 45px rgba(0,0,0,.7),0 0 35px rgba(255,255,255,.12)}
+@media(max-width:600px){
+.clock-container{left:18px;top:25px;transform:none}.clock-time{font-size:40px;letter-spacing:2px}.clock-date{margin-top:9px;font-size:11px;letter-spacing:1.2px}.clock-line{margin-top:9px}
+.player-position{width:calc(100% - 24px);bottom:14px}.player{min-height:76px;padding:12px 14px;gap:11px;border-radius:20px}.play-button{width:46px;height:46px;font-size:16px}.stream-name{font-size:12px}.volume{width:45px}.volume-icon{display:none}
+}
+</style>
+</head>
+<body>
+<div class="clock-container">
+  <div id="clockTime" class="clock-time">00:00:00</div>
+  <div id="clockDate" class="clock-date">Cargando fecha...</div>
+  <div class="clock-line"></div>
+</div>
+
+<div class="player-position">
+  <div class="player-glow"></div>
+  <div id="player" class="player">
+    <button id="playButton" class="play-button">▶</button>
+    <div class="stream-info">
+      <div class="stream-name">TSOUNDMUSIC RADIO</div>
+      <div class="stream-status"><span class="live-led"></span>EN DIRECTO</div>
+    </div>
+    <div class="volume-container">
+      <span class="volume-icon">🔊</span>
+      <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="0.8">
+    </div>
+  </div>
+</div>
+
+<audio id="audio" preload="none">
+  <source src="https://technoplayerserver.net/8028/stream" type="audio/mpeg">
+</audio>
+
+<script>
+function updateClock(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,"0");
+  document.getElementById("clockTime").textContent=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  document.getElementById("clockDate").textContent=now.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+updateClock();
+setInterval(updateClock,1000);
+
+const audio=document.getElementById("audio");
+const playButton=document.getElementById("playButton");
+const volume=document.getElementById("volume");
+const player=document.getElementById("player");
+
+audio.volume=.8;
+
+playButton.addEventListener("click",async()=>{
+  if(audio.paused){
+    try{await audio.play()}
+    catch(error){console.error(error);alert("No se ha podido reproducir el stream. Comprueba la URL.")}
+  }else audio.pause();
+});
+audio.addEventListener("play",()=>{playButton.innerHTML="❚❚";player.classList.add("playing")});
+audio.addEventListener("pause",()=>{playButton.innerHTML="▶";player.classList.remove("playing")});
+volume.addEventListener("input",()=>audio.volume=volume.value);
+</script>
+</body>
+</html>
